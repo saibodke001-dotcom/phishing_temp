@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishGuard | SOC Forensic Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: '#0ff',
+                        neonPurple: '#b026ff',
+                        darkBg: '#0b0f19',
+                        glass: 'rgba(17, 25, 40, 0.75)'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-darkBg text-white min-h-screen relative overflow-x-hidden antialiased">
+    
+    <!-- Particle Background Container -->
+    <div id="particles-js" class="absolute inset-0 z-0 fixed h-full w-full pointer-events-none"></div>
+
+    <!-- Main Content Wrapper (Glassmorphism) -->
+    <div class="relative z-10 flex flex-col min-h-screen">
+        
+        <!-- Navbar -->
+        <nav class="glass-nav border-b border-gray-800 backdrop-blur-md px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-shield-halved text-cyber text-2xl animate-pulse"></i>
+                <span class="text-xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyber to-neonPurple">PHISHGUARD SOC</span>
+            </div>
+            <div class="flex items-center space-x-6 text-sm">
+                <a href="#" class="hover:text-cyber transition-colors"><i class="fa-solid fa-chart-line me-1"></i> Dashboard</a>
+                <a href="#" class="hover:text-cyber transition-colors"><i class="fa-solid fa-code me-1"></i> API Docs</a>
+            </div>
+        </nav>
+
+        <!-- Main Layout Grid -->
+        <main class="flex-grow container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
+            
+            <!-- Left & Center Column: Input & Main Intelligence Panels -->
+            <div class="lg:col-span-3 space-y-6">
+                <!-- Input Card -->
+                <div class="glass-card p-8 rounded-2xl border border-gray-700 shadow-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-neonPurple rounded-full mix-blend-screen filter blur-3xl opacity-20"></div>
+                    
+                    <h1 class="text-3xl font-extrabold mb-2 text-white">Forensic Threat Analysis</h1>
+                    <p class="text-gray-400 mb-8">Enter a suspicious URL to extract deep intelligence and run AI diagnostics.</p>
+                    
+                    <form id="analyze-form" class="relative z-10">
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i class="fa-solid fa-satellite-dish text-gray-500 group-focus-within:text-cyber transition-colors"></i>
+                            </div>
+                            <input type="text" id="url-input" 
+                                class="w-full bg-gray-900/50 border border-gray-600 text-white text-lg rounded-xl focus:ring-2 focus:ring-cyber focus:border-transparent block pl-12 p-4 transition-all" 
+                                placeholder="https://example.com" required autocomplete="off">
+                        </div>
+                        <button type="submit" id="submit-btn" class="mt-6 w-full bg-gradient-to-r from-cyan-600 to-blue-700 hover:from-cyan-500 hover:to-blue-600 text-white font-bold py-4 rounded-xl shadow-lg transition-transform transform hover:scale-[1.01] flex justify-center items-center">
+                            <span id="btn-text"><i class="fa-solid fa-fingerprint me-2"></i> Launch Full Diagnostic</span>
+                            <i id="btn-spinner" class="fa-solid fa-circle-notch fa-spin hidden ms-2"></i>
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- MASSIVE RESULTS SECTION (Initially Hidden) -->
+                <div id="results-section" class="hidden space-y-8 pb-16">
+                    
+                    <!-- Verdict Banner -->
+                    <div id="verdict-card" class="glass-card p-8 rounded-2xl border border-gray-700 shadow-2xl flex items-center justify-between overflow-hidden relative">
+                        <div class="z-10">
+                            <h2 class="text-gray-400 text-sm uppercase tracking-widest mb-1">Threat Status</h2>
+                            <h1 id="verdict-text" class="text-5xl font-black">WAITING</h1>
+                            <p id="target-url-display" class="text-sm text-gray-400 mt-2 font-mono truncate max-w-lg"></p>
+                        </div>
+                        <div class="text-right z-10">
+                            <h2 class="text-gray-400 text-sm uppercase tracking-widest mb-1">AI Confidence</h2>
+                            <h1 id="confidence-text" class="text-5xl font-black">0%</h1>
+                        </div>
+                    </div>
+                    
+                    <!-- ML Explainer Section -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-card p-6 rounded-2xl border border-gray-700">
+                            <h3 class="text-lg font-bold mb-4 text-center text-gray-300"><i class="fa-solid fa-gauge-high me-2"></i> Threat Gauge</h3>
+                            <div class="relative h-56 w-full flex justify-center">
+                                <canvas id="gaugeChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="glass-card p-6 rounded-2xl border border-gray-700">
+                            <h3 class="text-lg font-bold mb-4 text-center text-gray-300"><i class="fa-solid fa-brain me-2"></i> ML SHAP Analysis</h3>
+                            <div class="relative h-56 w-full flex justify-center">
+                                <canvas id="radarChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FORENSIC INTELLIGENCE PANELS -->
+                    <h2 class="text-2xl font-bold mt-10 mb-4 text-cyber"><i class="fa-solid fa-magnifying-glass-chart me-2"></i> Deep Intelligence Report</h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <!-- Network Intelligence -->
+                        <div class="glass-card p-6 rounded-xl border border-gray-700">
+                            <h3 class="text-md font-bold mb-4 text-neonPurple border-b border-gray-700 pb-2"><i class="fa-solid fa-network-wired me-2"></i> Network Topology</h3>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex justify-between"><span class="text-gray-500">Resolved IP:</span> <span id="intel-ip" class="font-mono text-white">...</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Country:</span> <span id="intel-country" class="font-mono text-white">...</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">City:</span> <span id="intel-city" class="font-mono text-white">...</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">ISP/ASN:</span> <span id="intel-isp" class="font-mono text-white truncate max-w-[200px]">...</span></div>
+                            </div>
+                        </div>
+
+                        <!-- HTTP Protocol -->
+                        <div class="glass-card p-6 rounded-xl border border-gray-700">
+                            <h3 class="text-md font-bold mb-4 text-neonPurple border-b border-gray-700 pb-2"><i class="fa-solid fa-server me-2"></i> Server & Protocol</h3>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex justify-between"><span class="text-gray-500">Status Code:</span> <span id="intel-status" class="font-mono text-white">...</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Server Type:</span> <span id="intel-server" class="font-mono text-white truncate max-w-[200px]">...</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Connection:</span> <span id="intel-https" class="font-mono text-white">...</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Latency:</span> <span id="intel-latency" class="font-mono text-white">...</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Content Metrics -->
+                        <div class="glass-card p-6 rounded-xl border border-gray-700">
+                            <h3 class="text-md font-bold mb-4 text-neonPurple border-b border-gray-700 pb-2"><i class="fa-solid fa-file-code me-2"></i> DOM Architecture</h3>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex flex-col mb-2"><span class="text-gray-500 mb-1">Page Title:</span> <span id="intel-title" class="font-mono text-white truncate bg-gray-900/50 p-2 rounded">...</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Script Tags:</span> <span id="intel-scripts" class="font-mono text-white">...</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Internal Links:</span> <span id="intel-internal" class="font-mono text-green-400">...</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">External Links:</span> <span id="intel-external" class="font-mono text-orange-400">...</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Lexical Stats -->
+                        <div class="glass-card p-6 rounded-xl border border-gray-700">
+                            <h3 class="text-md font-bold mb-4 text-neonPurple border-b border-gray-700 pb-2"><i class="fa-solid fa-spell-check me-2"></i> Lexical Complexity</h3>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex justify-between"><span class="text-gray-500">URL Length:</span> <span id="intel-len" class="font-mono text-white">...</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Char Entropy:</span> <span id="intel-entropy" class="font-mono text-white">...</span></div>
+                                <p class="text-xs text-gray-500 mt-4 leading-relaxed">
+                                    <i class="fa-solid fa-circle-info me-1"></i> High entropy indicates a potentially auto-generated DGA domain often used by malware networks.
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+            
+            <!-- Right Column: Recent Scans Log -->
+            <div class="space-y-6">
+                <div class="glass-card p-6 rounded-2xl border border-gray-700 h-[calc(100vh-10rem)] sticky top-24 overflow-y-auto hidden lg:block">
+                    <h3 class="text-lg font-bold mb-6 flex items-center border-b border-gray-700 pb-3">
+                        <i class="fa-solid fa-bars-staggered me-2 text-cyber"></i> Live Threat Log
+                    </h3>
+                    <ul class="space-y-4" id="recent-scans-list">
+                        {% for scan in recent_scans %}
+                        <li class="p-3 rounded-lg bg-gray-800/50 border border-gray-700 hover:border-gray-500 transition-colors">
+                            <div class="flex justify-between items-start mb-2">
+                                {% if scan.is_phishing %}
+                                <span class="px-2 py-0.5 bg-red-500/20 text-red-500 text-[10px] font-bold rounded uppercase tracking-wider border border-red-500/30"><i class="fa-solid fa-bug me-1"></i>Phishing</span>
+                                {% else %}
+                                <span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-[10px] font-bold rounded uppercase tracking-wider border border-green-500/30"><i class="fa-solid fa-shield-check me-1"></i>Safe</span>
+                                {% endif %}
+                                <span class="text-[10px] text-gray-500">{{ scan.timestamp[:10] }}</span>
+                            </div>
+                            <p class="text-xs font-mono truncate text-gray-300" title="{{ scan.url }}">{{ scan.url }}</p>
+                            <div class="mt-2 text-[10px] text-gray-500 text-right">Conf: {{ scan.confidence }}%</div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script>
+        // Particles JS Config for Tech Background
+        particlesJS("particles-js", {
+            "particles": {
+                "number": {"value": 60, "density": {"enable": true, "value_area": 1000}},
+                "color": {"value": "#0ff"},
+                "shape": {"type": "circle"},
+                "opacity": {"value": 0.3, "random": false},
+                "size": {"value": 1.5, "random": true},
+                "line_linked": {"enable": true, "distance": 180, "color": "#b026ff", "opacity": 0.2, "width": 1},
+                "move": {"enable": true, "speed": 1.0, "direction": "none", "random": false, "straight": false, "out_mode": "out", "bounce": false}
+            },
+            "interactivity": {
+                "detect_on": "canvas",
+                "events": {
+                    "onhover": {"enable": true, "mode": "grab"},
+                    "onclick": {"enable": true, "mode": "push"},
+                    "resize": true
+                },
+                "modes": {
+                    "grab": {"distance": 140, "line_linked": {"opacity": 0.8}},
+                    "push": {"particles_nb": 2}
+                }
+            },
+            "retina_detect": true
+        });
+
+        // Chart instances
+        let gaugeChartInstance = null;
+        let radarChartInstance = null;
+
+        // Form Submit
+        document.getElementById('analyze-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const urlInput = document.getElementById('url-input').value;
+            const btnText = document.getElementById('btn-text');
+            const btnSpinner = document.getElementById('btn-spinner');
+            const resultsSection = document.getElementById('results-section');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            // Loading state
+            btnText.innerHTML = "Gathering Forensics...";
+            btnSpinner.classList.remove('hidden');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-75');
+
+            try {
+                const response = await fetch('/api/v1/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url: urlInput})
+                });
+                
+                const data = await response.json();
+                
+                if(response.ok) {
+                    renderResults(data);
+                    resultsSection.classList.remove('hidden');
+                    
+                    // Smooth scroll to results
+                    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                    alert("Analysis Failed: " + (data.error || "Unknown Error"));
+                }
+            } catch(error) {
+                alert("Network communication error.");
+            } finally {
+                // Restore button
+                btnText.innerHTML = '<i class="fa-solid fa-fingerprint me-2"></i> Launch Full Diagnostic';
+                btnSpinner.classList.add('hidden');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-75');
+            }
+        });
+
+        function renderResults(data) {
+            // Update Core Headers
+            const verdictText = document.getElementById('verdict-text');
+            const confidenceText = document.getElementById('confidence-text');
+            const verdictCard = document.getElementById('verdict-card');
+            document.getElementById('target-url-display').innerText = data.url;
+
+            if(data.is_phishing) {
+                verdictText.innerText = "CRITICAL THREAT";
+                verdictText.className = "text-5xl font-black text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]";
+                verdictCard.style.borderColor = "rgba(239, 68, 68, 0.6)";
+                verdictCard.style.background = "linear-gradient(135deg, rgba(17,25,40,0.8) 0%, rgba(100,0,0,0.2) 100%)";
+            } else {
+                verdictText.innerText = "NO THREAT DETECTED";
+                verdictText.className = "text-4xl sm:text-5xl font-black text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]";
+                verdictCard.style.borderColor = "rgba(74, 222, 128, 0.4)";
+                verdictCard.style.background = "linear-gradient(135deg, rgba(17,25,40,0.8) 0%, rgba(0,100,0,0.15) 100%)";
+            }
+            confidenceText.innerText = data.confidence + "%";
+
+            // Render Gauge (Doughnut)
+            const ctxGauge = document.getElementById('gaugeChart').getContext('2d');
+            if(gaugeChartInstance) gaugeChartInstance.destroy();
+            const color = data.is_phishing ? '#ef4444' : '#4ade80';
+            gaugeChartInstance = new Chart(ctxGauge, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [data.confidence, 100 - data.confidence],
+                        backgroundColor: [color, 'rgba(255, 255, 255, 0.05)'],
+                        borderWidth: 0,
+                        circumference: 270,
+                        rotation: 225
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '85%',
+                    plugins: { tooltip: {enabled: false} }
+                }
+            });
+
+            // Render Radar Chart for SHAP Features
+            const ctxRadar = document.getElementById('radarChart').getContext('2d');
+            if(radarChartInstance) radarChartInstance.destroy();
+            const shapKeys = Object.keys(data.shap_explanation);
+            const shapValues = shapKeys.map(k => Math.abs(data.shap_explanation[k]));
+
+            radarChartInstance = new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: shapKeys.map(k => k.replace(/_/g, ' ').toUpperCase()),
+                    datasets: [{
+                        label: 'Feature Weight',
+                        data: shapValues,
+                        backgroundColor: 'rgba(0, 255, 255, 0.1)',
+                        borderColor: '#0ff',
+                        borderWidth: 1.5,
+                        pointBackgroundColor: '#b026ff',
+                        pointBorderColor: '#fff',
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            pointLabels: { color: '#9ca3af', font: {size: 9} },
+                            ticks: { display: false }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Populate Forensic Intelligence Data
+            const intel = data.intelligence;
+            
+            // Network
+            document.getElementById('intel-ip').innerText = intel.network.ip_address;
+            document.getElementById('intel-country').innerText = intel.network.geolocation.country;
+            document.getElementById('intel-city').innerText = intel.network.geolocation.city;
+            document.getElementById('intel-isp').innerText = intel.network.geolocation.isp;
+            
+            // HTTP
+            document.getElementById('intel-status').innerText = intel.http.status_code;
+            document.getElementById('intel-server').innerText = intel.http.server;
+            document.getElementById('intel-https').innerHTML = intel.http.is_https ? '<span class="text-green-400"><i class="fa-solid fa-lock me-1"></i>Secure (HTTPS)</span>' : '<span class="text-red-400"><i class="fa-solid fa-lock-open me-1"></i>Insecure (HTTP)</span>';
+            document.getElementById('intel-latency').innerText = intel.http.response_time_ms + " ms";
+
+            // Content
+            document.getElementById('intel-title').innerText = intel.content.title;
+            document.getElementById('intel-scripts').innerText = intel.content.script_tags;
+            document.getElementById('intel-internal').innerText = intel.content.internal_links;
+            document.getElementById('intel-external').innerText = intel.content.external_links;
+
+            // Lexical
+            document.getElementById('intel-len').innerText = intel.lexical.length + " chars";
+            
+            // Entropy Coloring
+            const entropySpan = document.getElementById('intel-entropy');
+            entropySpan.innerText = intel.lexical.entropy;
+            if(intel.lexical.entropy > 4.5) {
+                entropySpan.className = "font-mono text-red-400 font-bold";
+            } else {
+                entropySpan.className = "font-mono text-green-400";
+            }
+        }
+    </script>
+</body>
+</html>
